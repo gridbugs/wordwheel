@@ -57,7 +57,7 @@
     const stepRad = (Math.PI * 2) / chars.length;
     shuffleInPlace(chars);
     return chars.map((char, i) => {
-      const angleRad = i * stepRad;
+      const angleRad = (i * stepRad) - (Math.PI / 2);
       return mkLetter(char, angleRad);
     }).join("\n");
   }
