@@ -2,14 +2,15 @@
 <style>
   #wheel {
     position:absolute;
-    top:0;
-    bottom:0;
-    left:0;
-    right:0;
+    top:0px;
+    left:0px;
+    width:100vmin;
+    height:100vmin;
+    border:2px solid red;
   }
   .letter {
     position:absolute;
-    font-size:10vh;
+    font-size:10vmin;
   }
   #input {
     position:absolute;
@@ -47,8 +48,13 @@
     return `<div class="letter" style="left:${x_percentage}%;top:${y_percentage}%">${char}</div>`;
   }
   function mkWord(word) {
-    const stepRad = (Math.PI * 2) / word.length;
-    const chars = Array.from(word);
+    const chars = Array.from(word).filter((c) => {
+      if (c === " ") {
+        return false;
+      }
+      return true;
+    });
+    const stepRad = (Math.PI * 2) / chars.length;
     shuffleInPlace(chars);
     return chars.map((char, i) => {
       const angleRad = i * stepRad;
@@ -65,6 +71,9 @@
   }
   input().addEventListener("input", update);
   input().addEventListener("keydown", keydown);
+  if (text() === "") {
+      input().value = "wordwheel";
+  }
   update();
   input().select();
 </script>
