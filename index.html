@@ -1,0 +1,70 @@
+<meta charset="utf-8">
+<style>
+  #wheel {
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    right:0;
+  }
+  .letter {
+    position:absolute;
+    font-size:10vh;
+  }
+  #input {
+    position:absolute;
+    font-size:48pt;
+    top:0;
+    left:0;
+    width:100%;
+    background-color:#00000000;
+  }
+</style>
+<div id="wheel"></div>
+<input id="input">
+<script>
+  function update() {
+    wheelDiv().innerHTML = mkWord(text());
+  }
+  function keydown(e) {
+    if (e.key == "Enter") {
+      update();
+    }
+  }
+  function input() {
+    return document.querySelector("#input");
+  }
+  function text() {
+    return input().value;
+  }
+  function wheelDiv() {
+    return document.querySelector("#wheel");
+  }
+  function mkLetter(char, angleRad) {
+    const RADIUS_PERCENTAGE = 33;
+    const x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
+    const y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
+    return `<div class="letter" style="left:${x_percentage}%;top:${y_percentage}%">${char}</div>`;
+  }
+  function mkWord(word) {
+    const stepRad = (Math.PI * 2) / word.length;
+    const chars = Array.from(word);
+    shuffleInPlace(chars);
+    return chars.map((char, i) => {
+      const angleRad = i * stepRad;
+      return mkLetter(char, angleRad);
+    }).join("\n");
+  }
+  function shuffleInPlace(data) {
+    for (let i = data.length - 1; i >= 1; i -= 1) {
+      const index = parseInt(Math.random() * data.length);
+      const tmp = data[index];
+      data[index] = data[i];
+      data[i] = tmp;
+    }
+  }
+  input().addEventListener("input", update);
+  input().addEventListener("keydown", keydown);
+  update();
+  input().select();
+</script>
