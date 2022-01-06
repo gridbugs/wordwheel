@@ -1,6 +1,8 @@
 <meta charset="utf-8">
 <title>Word Wheel</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
   #wheel {
     position:absolute;
     top:0px;
@@ -11,6 +13,7 @@
   .letter {
     position:absolute;
     font-size:10vmin;
+    font-family: 'Open Sans', sans-serif;
   }
   #input {
     position:absolute;
@@ -36,7 +39,7 @@
     return document.querySelector("#input");
   }
   function text() {
-    return input().value;
+    return input().value.toUpperCase();
   }
   function wheelDiv() {
     return document.querySelector("#wheel");
