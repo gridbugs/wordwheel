@@ -74,6 +74,7 @@
   }
   input().addEventListener("input", update);
   input().addEventListener("keydown", keydown);
+  wheelDiv().addEventListener("click", update);
   if (text() === "") {
       input().value = "wordwheel";
   }
