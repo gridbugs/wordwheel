@@ -36,36 +36,16 @@
 </div>
 <input id="input"/>
 <script>
-  function update() {
-    wheelDiv().innerHTML = mkWord(text());
-  }
 
-  function keydown(e) {
-    if (e.key === "Enter") {
-      update();
+  // Pure functions for generating the word wheel
+
+  function shuffleInPlace(data) {
+    for (let i = data.length - 1; i >= 1; i -= 1) {
+      const index = parseInt(Math.random() * data.length);
+      const tmp = data[index];
+      data[index] = data[i];
+      data[i] = tmp;
     }
-  }
-
-  function input() {
-    return document.querySelector("#input");
-  }
-
-  function text() {
-    return window.location.hash.slice(1);
-  }
-
-  function updateInput() {
-    window.location.hash = input().value;
-    update();
-  }
-
-  function updateHash() {
-    input().value = text();
-    update();
-  }
-
-  function wheelDiv() {
-    return document.querySelector("#wheel");
   }
 
   function mkLetter(char, angleRad) {
@@ -88,24 +68,72 @@
     }).join("\n");
   }
 
-  function shuffleInPlace(data) {
-    for (let i = data.length - 1; i >= 1; i -= 1) {
-      const index = parseInt(Math.random() * data.length);
-      const tmp = data[index];
-      data[index] = data[i];
-      data[i] = tmp;
-    }
+
+  // Application state
+
+  let currentWord = "wordwheel";
+  if (hashValue() !== "") {
+    currentWord = hashValue();
   }
 
-  input().addEventListener("input", updateInput);
-  input().addEventListener("keydown", keydown);
-  wheelDiv().addEventListener("click", update);
-  window.addEventListener('hashchange', updateHash);
-  if (text() !== "") {
-    input().value = text();
-  } else {
-    input().value = "wordwheel";
+
+  // Functions for syncing the ui state with the application state
+
+  function updateWheel() {
+    wheelDiv().innerHTML = mkWord(currentWord);
   }
-  update();
+
+  function updateInput() {
+    input().value = currentWord;
+  }
+
+  function updateHash() {
+    window.location.hash = currentWord;
+  }
+
+
+  // Accessing elements from the dom
+
+  function input() {
+    return document.querySelector("#input");
+  }
+
+  function hashValue() {
+    return window.location.hash.slice(1);
+  }
+
+  function wheelDiv() {
+    return document.querySelector("#wheel");
+  }
+
+  // the contents of the input field is changed
+  input().addEventListener("input", () => {
+    currentWord = input().value;
+    updateHash();
+    updateWheel();
+  });
+
+  // the hash value is changed
+  window.addEventListener('hashchange', () => {
+    currentWord = hashValue();
+    updateInput();
+    updateWheel();
+  });
+
+  // update the wheel if the enter key is pressed while the input field is selected
+  input().addEventListener("input", (e) => {
+    if (e.key === "Enter") {
+      updateWheel();
+    }
+  });
+
+  // shuffle the wheel if the wheel is tapped/clicked
+  wheelDiv().addEventListener("click", updateWheel);
+
+
+  // Sync the ui state with the current state and select the input text
+  updateHash();
+  updateInput();
+  updateWheel();
   input().select();
 </script>
