@@ -4,31 +4,42 @@
   @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
 
   #wheel {
-    position:absolute;
-    top:0px;
-    left:0px;
-    width:100vmin;
-    height:100vmin;
+    position: relative;
+    top: 0px;
+    left: 0px;
+    width: 100vmin;
+    height: 100vmin;
   }
   .letter {
-    position:absolute;
-    font-size:10vmin;
+    position: absolute;
+    font-size: 10vmin;
     font-family: 'Open Sans', sans-serif;
   }
   #input {
-    position:absolute;
-    font-size:48pt;
-    top:0;
-    left:0;
-    width:100%;
-    background-color:#00000000;
+    position: absolute;
+    font-size: 48pt;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #0000;
+  }
+  .container {
+    display: flex;
+    justify-content: space-around;
+  }
+  body {
+    margin: 0;
   }
 </style>
-<div id="wheel"></div>
-<input id="input">
+<div class="container">
+  <div id="wheel"></div>
+</div>
+<input id="input"/>
 <script>
   function update() {
-    wheelDiv().innerHTML = mkWord(text());
+    const t = text();
+    wheelDiv().innerHTML = mkWord(t);
+    window.location.hash = t;
   }
   function keydown(e) {
     if (e.key == "Enter") {
@@ -76,7 +87,11 @@
   input().addEventListener("keydown", keydown);
   wheelDiv().addEventListener("click", update);
   if (text() === "") {
+    if (window.location.hash === "") {
       input().value = "wordwheel";
+    } else {
+      input().value = window.location.hash.slice(1);
+    }
   }
   update();
   input().select();
