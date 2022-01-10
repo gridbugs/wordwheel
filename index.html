@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <title>Word Wheel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
 
@@ -30,11 +31,15 @@
   body {
     margin: 0;
   }
+  .github-fork-ribbon:before {
+    background-color: #333;
+  }
 </style>
 <div class="container">
   <div id="wheel"></div>
 </div>
 <input id="input"/>
+<a class="github-fork-ribbon right-bottom" href="https://github.com/gridbugs/wordwheel" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
 <script>
 
   // Pure functions for generating the word wheel
