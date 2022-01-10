@@ -5,8 +5,8 @@
 
   #wheel {
     position: relative;
-    top: 0px;
-    left: 0px;
+    top: 0;
+    left: 0;
     width: 100vmin;
     height: 100vmin;
   }
@@ -37,36 +37,48 @@
 <input id="input"/>
 <script>
   function update() {
-    const t = text();
-    wheelDiv().innerHTML = mkWord(t);
-    window.location.hash = t;
+    wheelDiv().innerHTML = mkWord(text());
   }
+
   function keydown(e) {
-    if (e.key == "Enter") {
+    if (e.key === "Enter") {
       update();
     }
   }
+
   function input() {
     return document.querySelector("#input");
   }
+
   function text() {
-    return input().value.toUpperCase();
+    return window.location.hash.slice(1);
   }
+
+  function updateInput() {
+    window.location.hash = input().value;
+    update();
+  }
+
+  function updateHash() {
+    input().value = text();
+    update();
+  }
+
   function wheelDiv() {
     return document.querySelector("#wheel");
   }
+
   function mkLetter(char, angleRad) {
     const RADIUS_PERCENTAGE = 33;
     const x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
     const y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
     return `<div class="letter" style="left:${x_percentage}%;top:${y_percentage}%">${char}</div>`;
   }
+
   function mkWord(word) {
-    const chars = Array.from(word).filter((c) => {
-      if (c === " ") {
-        return false;
-      }
-      return true;
+    const chars = Array.from(word.toUpperCase()).filter((c) => {
+      return c !== " ";
+
     });
     const stepRad = (Math.PI * 2) / chars.length;
     shuffleInPlace(chars);
@@ -75,6 +87,7 @@
       return mkLetter(char, angleRad);
     }).join("\n");
   }
+
   function shuffleInPlace(data) {
     for (let i = data.length - 1; i >= 1; i -= 1) {
       const index = parseInt(Math.random() * data.length);
@@ -83,15 +96,15 @@
       data[i] = tmp;
     }
   }
-  input().addEventListener("input", update);
+
+  input().addEventListener("input", updateInput);
   input().addEventListener("keydown", keydown);
   wheelDiv().addEventListener("click", update);
-  if (text() === "") {
-    if (window.location.hash === "") {
-      input().value = "wordwheel";
-    } else {
-      input().value = window.location.hash.slice(1);
-    }
+  window.addEventListener('hashchange', updateHash);
+  if (text() !== "") {
+    input().value = text();
+  } else {
+    input().value = "wordwheel";
   }
   update();
   input().select();
