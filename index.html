@@ -74,26 +74,18 @@
   }
 
 
-  // Application state
-
-  let currentWord = "wordwheel";
-  if (hashValue() !== "") {
-    currentWord = hashValue();
-  }
-
-
   // Functions for syncing the ui state with the application state
 
-  function updateWheel() {
-    wheelDiv().innerHTML = mkWord(currentWord);
+  function updateWheel(word) {
+    wheelDiv().innerHTML = mkWord(word);
   }
 
-  function updateInput() {
-    input().value = currentWord;
+  function updateInput(word) {
+    input().value = word;
   }
 
-  function updateHash() {
-    window.location.hash = currentWord;
+  function updateHash(word) {
+    window.location.hash = word;
   }
 
 
@@ -104,7 +96,7 @@
   }
 
   function hashValue() {
-    return window.location.hash.slice(1);
+    return decodeURIComponent(window.location.hash.slice(1));
   }
 
   function wheelDiv() {
@@ -113,32 +105,35 @@
 
   // the contents of the input field is changed
   input().addEventListener("input", () => {
-    currentWord = input().value;
-    updateHash();
-    updateWheel();
+    const word = input().value;
+    updateWheel(word);
+    updateHash(word);
   });
 
   // the hash value is changed
   window.addEventListener('hashchange', () => {
-    currentWord = hashValue();
-    updateInput();
-    updateWheel();
+    const word = hashValue();
+    updateInput(word);
+    updateWheel(word);
   });
 
   // update the wheel if the enter key is pressed while the input field is selected
   input().addEventListener("input", (e) => {
     if (e.key === "Enter") {
-      updateWheel();
+      updateWheel(input().value);
     }
   });
 
   // shuffle the wheel if the wheel is tapped/clicked
   wheelDiv().addEventListener("click", updateWheel);
 
-
-  // Sync the ui state with the current state and select the input text
-  updateHash();
-  updateInput();
-  updateWheel();
+  let word = "wordwheel";
+  // initialize wheel from hash
+  if (hashValue() !== "") {
+    word = hashValue();
+  }
+  updateHash(word);
+  updateInput(word);
+  updateWheel(word);
   input().select();
 </script>
