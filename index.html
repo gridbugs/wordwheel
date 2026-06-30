@@ -59,35 +59,45 @@
     }
   }
 
-  function mkLetter(char, angleRad) {
+  function mkLetter(char, angleRad, containerWidthPx, containerHeightPx) {
     const RADIUS_PERCENTAGE = 33;
     const LETTER_SIZE_PX = 100;
-    const wheelWidthPx = wheelDiv().offsetWidth;
-    const wheelHeightPx = wheelDiv().offsetHeight;
     const mid_x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
     const mid_y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
-    const left_x_percentage = mid_x_percentage - ((100 * LETTER_SIZE_PX) / (wheelWidthPx * 2));
-    const top_y_percentage = mid_y_percentage - ((100 * LETTER_SIZE_PX) / (wheelHeightPx * 2));
+    const left_x_percentage = mid_x_percentage - ((100 * LETTER_SIZE_PX) / (containerWidthPx * 2));
+    const top_y_percentage = mid_y_percentage - ((100 * LETTER_SIZE_PX) / (containerHeightPx * 2));
     return `<div class="letter" style="left:${left_x_percentage}%;top:${top_y_percentage}%"><span>${char}</span></div>`;
   }
 
   class Letters {
     constructor(word) {
       this.word = word;
-      this.chars = Array.from(word.toUpperCase()).filter((c) => {
+      this.updateLetterArray();
+    }
+
+    updateLetterArray() {
+      this.chars = Array.from(this.word.toUpperCase()).filter((c) => {
         return c !== " ";
       });
+    }
+
+    setWord(word) {
+      if (word !== this.word) {
+        this.word = word;
+        this.updateLetterArray();
+        this.shuffle();
+      }
     }
 
     shuffle() {
       shuffleInPlace(this.chars);
     }
 
-    letterWheelHtmlString() {
+    letterWheelHtmlString(containerWidthPx, containerHeightPx) {
       const stepRad = (Math.PI * 2) / this.chars.length;
       return this.chars.map((char, i) => {
         const angleRad = (i * stepRad) - (Math.PI / 2);
-        return mkLetter(char, angleRad);
+        return mkLetter(char, angleRad, containerWidthPx, containerHeightPx);
       }).join("\n");
     }
   }
@@ -96,7 +106,9 @@
   let currentWord;
 
   function updateWheel() {
-    wheelDiv().innerHTML = currentLetters.letterWheelHtmlString();
+    const wheelWidthPx = wheelDiv().offsetWidth;
+    const wheelHeightPx = wheelDiv().offsetHeight;
+    wheelDiv().innerHTML = currentLetters.letterWheelHtmlString(wheelWidthPx, wheelHeightPx);
   }
 
   function updateInput(word) {
@@ -125,22 +137,15 @@
 
   // the contents of the input field is changed
   input().addEventListener("input", () => {
-    const word = input().value;
-    if (word !== currentWord) {
-      currentLetters = new Letters(word);
-      currentLetters.shuffle();
-      updateWheel();
-      updateHash(word);
-    }
+    currentLetters.setWord(input().value);
+    updateWheel();
+    updateHash(word);
   });
 
   window.addEventListener('hashchange', () => {
-    const word = hashValue();
-    if (word !== currentLetters.word) {
-      currentLetters = new Letters(word);
-      currentLetters.shuffle();
-      updateWheel();
-    }
+    currentLetters.setWord(hashValue());
+    currentLetters.shuffle();
+    updateWheel();
   });
 
   window.addEventListener("resize", (e) => {
