@@ -13,30 +13,42 @@
     position: absolute;
     font-size: 10vmin;
     font-family: sans-serif;
+    width: 100px;
+    height: 100px;
+    line-height: 100px;
+    text-align: center;
+  }
+  .letter span {
+    display: inline-block;
+    vertical-align: middle;
   }
   #input {
-    position: absolute;
     font-size: 48pt;
     top: 0;
     left: 0;
     width: 100%;
-    background-color: #0000; /* prevent the input field from occluding the word wheel */
   }
   .container {
     display: flex;
     justify-content: space-around;
+    align-items: center;
   }
   body {
     margin: 0;
   }
+  #refresh {
+    position: absolute;
+    height: 10vmin;
+    width: 10vmin;
+    filter: invert(0.5);
+  }
 </style>
+<input id="input"/>
 <div class="container">
   <div id="wheel"></div>
+  <img id="refresh" src="refresh.svg">
 </div>
-<input id="input"/>
 <script>
-
-  // Pure functions for generating the word wheel
 
   function shuffleInPlace(data) {
     for (let i = data.length - 1; i >= 1; i -= 1) {
@@ -49,29 +61,42 @@
 
   function mkLetter(char, angleRad) {
     const RADIUS_PERCENTAGE = 33;
-    const x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
-    const y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
-    return `<div class="letter" style="left:${x_percentage}%;top:${y_percentage}%">${char}</div>`;
+    const LETTER_SIZE_PX = 100;
+    const wheelWidthPx = wheelDiv().offsetWidth;
+    const wheelHeightPx = wheelDiv().offsetHeight;
+    const mid_x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
+    const mid_y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
+    const left_x_percentage = mid_x_percentage - ((100 * LETTER_SIZE_PX) / (wheelWidthPx * 2));
+    const top_y_percentage = mid_y_percentage - ((100 * LETTER_SIZE_PX) / (wheelHeightPx * 2));
+    return `<div class="letter" style="left:${left_x_percentage}%;top:${top_y_percentage}%"><span>${char}</span></div>`;
   }
 
-  function mkWord(word) {
-    const chars = Array.from(word.toUpperCase()).filter((c) => {
-      return c !== " ";
+  class Letters {
+    constructor(word) {
+      this.word = word;
+      this.chars = Array.from(word.toUpperCase()).filter((c) => {
+        return c !== " ";
+      });
+    }
 
-    });
-    const stepRad = (Math.PI * 2) / chars.length;
-    shuffleInPlace(chars);
-    return chars.map((char, i) => {
-      const angleRad = (i * stepRad) - (Math.PI / 2);
-      return mkLetter(char, angleRad);
-    }).join("\n");
+    shuffle() {
+      shuffleInPlace(this.chars);
+    }
+
+    letterWheelHtmlString() {
+      const stepRad = (Math.PI * 2) / this.chars.length;
+      return this.chars.map((char, i) => {
+        const angleRad = (i * stepRad) - (Math.PI / 2);
+        return mkLetter(char, angleRad);
+      }).join("\n");
+    }
   }
 
+  let currentLetters;
+  let currentWord;
 
-  // Functions for syncing the ui state with the application state
-
-  function updateWheel(word) {
-    wheelDiv().innerHTML = mkWord(word);
+  function updateWheel() {
+    wheelDiv().innerHTML = currentLetters.letterWheelHtmlString();
   }
 
   function updateInput(word) {
@@ -82,11 +107,12 @@
     window.location.hash = word;
   }
 
-
-  // Accessing elements from the dom
-
   function input() {
     return document.querySelector("#input");
+  }
+
+  function refreshButton() {
+    return document.querySelector("#refresh");
   }
 
   function hashValue() {
@@ -100,33 +126,40 @@
   // the contents of the input field is changed
   input().addEventListener("input", () => {
     const word = input().value;
-    updateWheel(word);
-    updateHash(word);
-  });
-
-  // the hash value is changed
-  window.addEventListener('hashchange', () => {
-    const word = hashValue();
-    updateInput(word);
-  });
-
-  // update the wheel if the enter key is pressed while the input field is selected
-  input().addEventListener("input", (e) => {
-    if (e.key === "Enter") {
-      updateWheel(input().value);
+    if (word !== currentWord) {
+      currentLetters = new Letters(word);
+      currentLetters.shuffle();
+      updateWheel();
+      updateHash(word);
     }
   });
 
-  // shuffle the wheel if the wheel is tapped/clicked
-  wheelDiv().addEventListener("click", updateWheel);
+  window.addEventListener('hashchange', () => {
+    const word = hashValue();
+    if (word !== currentLetters.word) {
+      currentLetters = new Letters(word);
+      currentLetters.shuffle();
+      updateWheel();
+    }
+  });
+
+  window.addEventListener("resize", (e) => {
+    updateWheel();
+  });
+
+  refreshButton().addEventListener("click", (e) => {
+    currentLetters.shuffle();
+    updateWheel();
+  });
 
   let word = "wordwheel";
-  // initialize wheel from hash
   if (hashValue() !== "") {
     word = hashValue();
   }
+  currentLetters = new Letters(word);
+  currentLetters.shuffle();
   updateHash(word);
   updateInput(word);
-  updateWheel(word);
+  updateWheel();
   input().select();
 </script>
