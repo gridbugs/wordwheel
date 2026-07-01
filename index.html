@@ -19,9 +19,9 @@
     position: absolute;
     font-size: 10vmin;
     font-family: sans-serif;
-    width: 100px;
-    height: 100px;
-    line-height: 100px;
+    width: 140px;
+    height: 140px;
+    line-height: 140px;
     text-align: center;
     border-radius: 10px;
     border: 4px solid #0000;
@@ -37,6 +37,17 @@
     transition-duration: 0s;
   }
   .letterOutlined {
+    border: 4px dashed #aaaaaa;
+  }
+  .space {
+    border: 4px solid #0000;
+    border-radius: 10px;
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    transition-duration: 0.1s;
+  }
+  .spaceOutlined {
     border: 4px dashed #aaaaaa;
   }
   #input {
@@ -75,21 +86,26 @@
     }
   }
 
-  // 100px wide plus a 4px border
-  const LETTER_SIZE_PX = 108;
+  // 140px wide plus a 4px border
+  const LETTER_SIZE_PX = 148;
 
-  function stepsToBubbleArrayAfterMove(fromIndex, toIndex, arrayLength) {
-    if (fromIndex === toIndex) {
+  // 40px wide plus a 4px border
+  const SPACE_SIZE_PX = 48;
+
+  function stepsToBubbleArrayAfterMove(fromIndex, toIndexLeft, toIndexRight, arrayLength) {
+    if (fromIndex === toIndexLeft || fromIndex === toIndexRight) {
       return [];
     }
+
+    const numStepsLeft = ((toIndexLeft - fromIndex) + arrayLength) % arrayLength;
+    const numStepsRight = ((fromIndex - toIndexRight) + arrayLength) % arrayLength;
+    const toIndex = numStepsLeft < numStepsRight ? toIndexLeft : toIndexRight;
 
     // The item at `fromIndex` is moving to `toIndex` creating a gap at
     // `fromIndex` that must be filled, and forcing the item at `toIndex`
     // to move out of the way. All the items in between the two indices
     // (including the item at `toIndex`) must move to fill the gap at
     // `fromIndex`.
-    const numStepsLeft = ((toIndex - fromIndex) + arrayLength) % arrayLength;
-    const numStepsRight = ((fromIndex - toIndex) + arrayLength) % arrayLength;
     const dir = numStepsLeft < numStepsRight ? (-1) : 1;
     const ret = [{ from_: fromIndex, to: toIndex }];
     for (let i = toIndex; ((i + arrayLength) % arrayLength) != fromIndex; i += dir) {
@@ -133,6 +149,10 @@
         return (i * this.stepRad()) - (Math.PI / 2);
     }
 
+    angleToSpaceAfterIndex(i) {
+        return this.angleToLetterAtIndex(i) + (this.stepRad() / 2);
+    }
+
     percentageCoordOfLetterAtIndex(i, containerWidthPx, containerHeightPx) {
       const RADIUS_PERCENTAGE = 33;
       const angleRad = this.angleToLetterAtIndex(i);
@@ -146,20 +166,37 @@
       };
     }
 
+    percentageCoordOfSpaceAfterIndex(i, containerWidthPx, containerHeightPx) {
+      const RADIUS_PERCENTAGE = 33;
+      const angleRad = this.angleToSpaceAfterIndex(i);
+      const mid_x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
+      const mid_y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
+      const left_x_percentage = mid_x_percentage - ((100 * SPACE_SIZE_PX) / (containerWidthPx * 2));
+      const top_y_percentage = mid_y_percentage - ((100 * SPACE_SIZE_PX) / (containerHeightPx * 2));
+      return {
+        x: left_x_percentage,
+        y: top_y_percentage,
+      };
+    }
+
     letterWheelHtmlString(containerWidthPx, containerHeightPx) {
       const stepRad = (Math.PI * 2) / this.chars.length;
       return this.chars.map((char, i) => {
-        const { x, y } = this.percentageCoordOfLetterAtIndex(i, containerWidthPx, containerHeightPx);
-        return `<div data-index="${i}" class="letter" style="left:${x}%;top:${y}%">
+        const letterCoord = this.percentageCoordOfLetterAtIndex(i, containerWidthPx, containerHeightPx);
+        const spaceCoord = this.percentageCoordOfSpaceAfterIndex(i, containerWidthPx, containerHeightPx);
+        return `<div data-index="${i}" class="letter" style="left:${letterCoord.x}%;top:${letterCoord.y}%">
           <span>${char}</span>
-        </div>`;
+        </div>
+        <div data-index="${i}" class="space" style="left:${spaceCoord.x}%;top:${spaceCoord.y}%">
+        </div>
+          `;
       }).join("\n");
     }
 
     // Needed so that when the wheel redraws on resize the new order is respected.
-    moveLetter(fromIndex, toIndex) {
+    moveLetter(fromIndex, toIndexLeft, toIndexRight) {
       const origChars = this.chars.slice(0);
-      for (const { from_, to } of stepsToBubbleArrayAfterMove(fromIndex, toIndex, this.chars.length)) {
+      for (const { from_, to } of stepsToBubbleArrayAfterMove(fromIndex, toIndexLeft, toIndexRight, this.chars.length)) {
         this.chars[to] = origChars[from_];
       }
     }
@@ -169,31 +206,38 @@
   let currentWord;
   let selectedNode = null;
   let letterNodes_ = [];
+  let spaceNodes_ = [];
 
-  function computeLetterNodes() {
-    const ret = [];
+  function computeNodeLists() {
+    letterNodes_ = [];
+    spaceNodes_ = [];
     for (let node of wheelDiv().childNodes) {
       if (node.classList && node.classList.contains("letter")) {
-        ret.push(node);
+        letterNodes_.push(node);
+      }
+      if (node.classList && node.classList.contains("space")) {
+        spaceNodes_.push(node);
       }
     }
-    return ret;
   }
 
   function letterNodes() {
     return letterNodes_;
   }
 
-  function letterNodeWithinRange(node, range) {
-    for (let n of letterNodes()) {
-      if (n === node) {
+  function spaceNodeWithinRange(letterNode, range, numLetters) {
+    const letterIndex = parseInt(letterNode.dataset.index);
+    const prevLetterIndex = ((letterIndex - 1) + numLetters) % numLetters;
+    for (let spaceNode of spaceNodes_) {
+      const spaceIndex = parseInt(spaceNode.dataset.index);
+      if (spaceIndex === letterIndex || spaceIndex === prevLetterIndex) {
         continue;
       }
-      let dx = node.offsetLeft - n.offsetLeft;
-      let dy = node.offsetTop - n.offsetTop;
-      let dist = Math.sqrt((dx * dx) + (dy * dy));
+      const dx = spaceNode.offsetLeft - letterNode.offsetLeft;
+      const dy = spaceNode.offsetTop - letterNode.offsetTop;
+      const dist = Math.sqrt((dx * dx) + (dy * dy));
       if (dist < range) {
-        return n;
+        return spaceNode;
       }
     }
     return null;
@@ -214,7 +258,9 @@
     selectedNode = null;
     for (let node of letterNodes()) {
       node.classList.remove("letterDragging");
-      node.classList.remove("letterOutlined");
+    }
+    for (let node of spaceNodes_) {
+      node.classList.remove("spaceOutlined");
     }
   }
 
@@ -223,7 +269,7 @@
     deselect();
   });
 
-  const REPLACE_RANGE_PX = 75;
+  const REPLACE_RANGE_PX = 140;
 
   wheelDiv().addEventListener("touchstart", (e) => {
     e.preventDefault();
@@ -234,14 +280,15 @@
       const wheel = wheelDiv();
       selectedNode.style.left = `${e.clientX - (LETTER_SIZE_PX / 2) - wheel.offsetLeft}px`;
       selectedNode.style.top = `${e.clientY - (LETTER_SIZE_PX / 2) - wheel.offsetTop}px`;
-      const nodeToReplace = letterNodeWithinRange(selectedNode, REPLACE_RANGE_PX);
-      if (nodeToReplace !== null) {
+      const targetSpaceNode = spaceNodeWithinRange(selectedNode, REPLACE_RANGE_PX, currentLetters.chars.length);
+      if (targetSpaceNode !== null) {
         const fromIndex = parseInt(selectedNode.dataset.index);
-        const toIndex = parseInt(nodeToReplace.dataset.index);
-        currentLetters.moveLetter(fromIndex, toIndex);
+        const toIndexLeft = parseInt(targetSpaceNode.dataset.index);
+        const toIndexRight = (toIndexLeft + 1) % currentLetters.chars.length;
+        currentLetters.moveLetter(fromIndex, toIndexLeft, toIndexRight);
         const wheelWidthPx = wheel.offsetWidth;
         const wheelHeightPx = wheel.offsetHeight;
-        const steps = stepsToBubbleArrayAfterMove(fromIndex, toIndex, currentLetters.chars.length);
+        const steps = stepsToBubbleArrayAfterMove(fromIndex, toIndexLeft, toIndexRight, currentLetters.chars.length);
         const nodes = letterNodes();
         for (const { from_, to } of steps) {
           const fromNode = nodes[from_];
@@ -265,13 +312,13 @@
     const wheelWidthPx = wheel.offsetWidth;
     const wheelHeightPx = wheel.offsetHeight;
     wheel.innerHTML = currentLetters.letterWheelHtmlString(wheelWidthPx, wheelHeightPx);
-    letterNodes_ = computeLetterNodes();
+    computeNodeLists();
     for (let node of letterNodes()) {
       node.addEventListener("pointerdown", (e) => {
         node.classList.add("letterDragging");
         selectedNode = node;
-        for (let node of letterNodes()) {
-          node.classList.add("letterOutlined");
+        for (let node of spaceNodes_) {
+          node.classList.add("spaceOutlined");
         }
       });
     }
@@ -316,6 +363,7 @@
   window.addEventListener("resize", (e) => {
     updateWheel();
   });
+
 
   refreshButton().addEventListener("pointerdown", (e) => {
     currentLetters.shuffle();
