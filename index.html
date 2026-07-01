@@ -10,6 +10,12 @@
     height: 100vmin;
   }
   .letter {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
     position: absolute;
     font-size: 10vmin;
     font-family: sans-serif;
@@ -17,10 +23,21 @@
     height: 100px;
     line-height: 100px;
     text-align: center;
+    border-radius: 10px;
+    border: 4px solid #0000;
+    transition-duration: 0.1s;
   }
   .letter span {
     display: inline-block;
     vertical-align: middle;
+  }
+  .letterDragging {
+    background: #aaaaaa80;
+    z-index: 1;
+    transition-duration: 0s;
+  }
+  .letterOutlined {
+    border: 4px dashed #aaaaaa;
   }
   #input {
     font-size: 48pt;
@@ -59,14 +76,30 @@
     }
   }
 
-  function mkLetter(char, angleRad, containerWidthPx, containerHeightPx) {
-    const RADIUS_PERCENTAGE = 33;
-    const LETTER_SIZE_PX = 100;
-    const mid_x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
-    const mid_y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
-    const left_x_percentage = mid_x_percentage - ((100 * LETTER_SIZE_PX) / (containerWidthPx * 2));
-    const top_y_percentage = mid_y_percentage - ((100 * LETTER_SIZE_PX) / (containerHeightPx * 2));
-    return `<div class="letter" style="left:${left_x_percentage}%;top:${top_y_percentage}%"><span>${char}</span></div>`;
+  // 100px wide plus a 4px border
+  const LETTER_SIZE_PX = 108;
+
+  function stepsToBubbleArrayAfterMove(fromIndex, toIndex, arrayLength) {
+    if (fromIndex === toIndex) {
+      return [];
+    }
+
+    // The item at `fromIndex` is moving to `toIndex` creating a gap at
+    // `fromIndex` that must be filled, and forcing the item at `toIndex`
+    // to move out of the way. All the items in between the two indices
+    // (including the item at `toIndex`) must move to fill the gap at
+    // `fromIndex`.
+    const numStepsLeft = ((toIndex - fromIndex) + arrayLength) % arrayLength;
+    const numStepsRight = ((fromIndex - toIndex) + arrayLength) % arrayLength;
+    const dir = numStepsLeft < numStepsRight ? (-1) : 1;
+    const ret = [{ from_: fromIndex, to: toIndex }];
+    for (let i = toIndex; ((i + arrayLength) % arrayLength) != fromIndex; i += dir) {
+      ret.push({
+        from_: (i + arrayLength) % arrayLength,
+        to: (i + dir + arrayLength) % arrayLength,
+      });
+    }
+    return ret;
   }
 
   class Letters {
@@ -93,22 +126,152 @@
       shuffleInPlace(this.chars);
     }
 
+    stepRad() {
+      return (Math.PI * 2) / this.chars.length;
+    }
+
+    angleToLetterAtIndex(i) {
+        return (i * this.stepRad()) - (Math.PI / 2);
+    }
+
+    percentageCoordOfLetterAtIndex(i, containerWidthPx, containerHeightPx) {
+      const RADIUS_PERCENTAGE = 33;
+      const angleRad = this.angleToLetterAtIndex(i);
+      const mid_x_percentage = RADIUS_PERCENTAGE * Math.cos(angleRad) + 50;
+      const mid_y_percentage = RADIUS_PERCENTAGE * Math.sin(angleRad) + 50;
+      const left_x_percentage = mid_x_percentage - ((100 * LETTER_SIZE_PX) / (containerWidthPx * 2));
+      const top_y_percentage = mid_y_percentage - ((100 * LETTER_SIZE_PX) / (containerHeightPx * 2));
+      return {
+        x: left_x_percentage,
+        y: top_y_percentage,
+      };
+    }
+
     letterWheelHtmlString(containerWidthPx, containerHeightPx) {
       const stepRad = (Math.PI * 2) / this.chars.length;
       return this.chars.map((char, i) => {
-        const angleRad = (i * stepRad) - (Math.PI / 2);
-        return mkLetter(char, angleRad, containerWidthPx, containerHeightPx);
+        const { x, y } = this.percentageCoordOfLetterAtIndex(i, containerWidthPx, containerHeightPx);
+        return `<div data-index="${i}" class="letter" style="left:${x}%;top:${y}%">
+          <span>${char}</span>
+        </div>`;
       }).join("\n");
+    }
+
+    // Needed so that when the wheel redraws on resize the new order is respected.
+    moveLetter(fromIndex, toIndex) {
+      const origChars = this.chars.slice(0);
+      for (const { from_, to } of stepsToBubbleArrayAfterMove(fromIndex, toIndex, this.chars.length)) {
+        this.chars[to] = origChars[from_];
+      }
     }
   }
 
   let currentLetters;
   let currentWord;
+  let selectedNode = null;
+  let letterNodes_ = [];
+
+  function computeLetterNodes() {
+    const ret = [];
+    for (let node of wheelDiv().childNodes) {
+      if (node.classList && node.classList.contains("letter")) {
+        ret.push(node);
+      }
+    }
+    return ret;
+  }
+
+  function letterNodes() {
+    return letterNodes_;
+  }
+
+  function letterNodeWithinRange(node, range) {
+    for (let n of letterNodes()) {
+      if (n === node) {
+        continue;
+      }
+      let dx = node.offsetLeft - n.offsetLeft;
+      let dy = node.offsetTop - n.offsetTop;
+      let dist = Math.sqrt((dx * dx) + (dy * dy));
+      if (dist < range) {
+        return n;
+      }
+    }
+    return null;
+  }
+
+  function resetSelectedNode() {
+    if (selectedNode) {
+      const wheel = wheelDiv();
+      const wheelWidthPx = wheel.offsetWidth;
+      const wheelHeightPx = wheel.offsetHeight;
+      const { x, y } = currentLetters.percentageCoordOfLetterAtIndex(selectedNode.dataset.index, wheelWidthPx, wheelHeightPx);
+      selectedNode.style.left = `${x}%`;
+      selectedNode.style.top = `${y}%`;
+    }
+  }
+
+  function deselect() {
+    selectedNode = null;
+    for (let node of letterNodes()) {
+      node.classList.remove("letterDragging");
+      node.classList.remove("letterOutlined");
+    }
+  }
+
+  document.addEventListener("mouseup", (e) => {
+    resetSelectedNode();
+    deselect();
+  });
+
+  const REPLACE_RANGE_PX = 50;
+
+  document.addEventListener("mousemove", (e) => {
+    if (selectedNode) {
+      const wheel = wheelDiv();
+      selectedNode.style.left = `${e.clientX - (LETTER_SIZE_PX / 2) - wheel.offsetLeft}px`;
+      selectedNode.style.top = `${e.clientY - (LETTER_SIZE_PX / 2) - wheel.offsetTop}px`;
+      const nodeToReplace = letterNodeWithinRange(selectedNode, REPLACE_RANGE_PX);
+      if (nodeToReplace !== null) {
+        const fromIndex = parseInt(selectedNode.dataset.index);
+        const toIndex = parseInt(nodeToReplace.dataset.index);
+        currentLetters.moveLetter(fromIndex, toIndex);
+        const wheelWidthPx = wheel.offsetWidth;
+        const wheelHeightPx = wheel.offsetHeight;
+        const steps = stepsToBubbleArrayAfterMove(fromIndex, toIndex, currentLetters.chars.length);
+        const nodes = letterNodes();
+        for (const { from_, to } of steps) {
+          const fromNode = nodes[from_];
+          const toNode = nodes[to];
+          const { x, y } = currentLetters.percentageCoordOfLetterAtIndex(to, wheelWidthPx, wheelHeightPx);
+          fromNode.style.left = `${x}%`;
+          fromNode.style.top = `${y}%`;
+          fromNode.dataset.index = to;
+        }
+        const origLetterNodes = letterNodes_.slice(0);
+        for (const { from_, to } of steps) {
+          letterNodes_[to] = origLetterNodes[from_];
+        }
+        deselect();
+      }
+    }
+  });
 
   function updateWheel() {
-    const wheelWidthPx = wheelDiv().offsetWidth;
-    const wheelHeightPx = wheelDiv().offsetHeight;
-    wheelDiv().innerHTML = currentLetters.letterWheelHtmlString(wheelWidthPx, wheelHeightPx);
+    const wheel = wheelDiv();
+    const wheelWidthPx = wheel.offsetWidth;
+    const wheelHeightPx = wheel.offsetHeight;
+    wheel.innerHTML = currentLetters.letterWheelHtmlString(wheelWidthPx, wheelHeightPx);
+    letterNodes_ = computeLetterNodes();
+    for (let node of letterNodes()) {
+      node.addEventListener("mousedown", (e) => {
+        node.classList.add("letterDragging");
+        selectedNode = node;
+        for (let node of letterNodes()) {
+          node.classList.add("letterOutlined");
+        }
+      });
+    }
   }
 
   function updateInput(word) {
@@ -135,7 +298,6 @@
     return document.querySelector("#wheel");
   }
 
-  // the contents of the input field is changed
   input().addEventListener("input", () => {
     currentLetters.setWord(input().value);
     updateWheel();
