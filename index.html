@@ -66,7 +66,6 @@
   <img id="refresh" src="refresh.svg">
 </div>
 <script>
-
   function shuffleInPlace(data) {
     for (let i = data.length - 1; i >= 1; i -= 1) {
       const index = parseInt(Math.random() * data.length);
@@ -219,14 +218,18 @@
     }
   }
 
-  document.addEventListener("mouseup", (e) => {
+  document.addEventListener("pointerup", (e) => {
     resetSelectedNode();
     deselect();
   });
 
   const REPLACE_RANGE_PX = 50;
 
-  document.addEventListener("mousemove", (e) => {
+  wheelDiv().addEventListener("touchstart", (e) => {
+    e.preventDefault();
+  });
+
+  window.addEventListener("pointermove", (e) => {
     if (selectedNode) {
       const wheel = wheelDiv();
       selectedNode.style.left = `${e.clientX - (LETTER_SIZE_PX / 2) - wheel.offsetLeft}px`;
@@ -264,7 +267,7 @@
     wheel.innerHTML = currentLetters.letterWheelHtmlString(wheelWidthPx, wheelHeightPx);
     letterNodes_ = computeLetterNodes();
     for (let node of letterNodes()) {
-      node.addEventListener("mousedown", (e) => {
+      node.addEventListener("pointerdown", (e) => {
         node.classList.add("letterDragging");
         selectedNode = node;
         for (let node of letterNodes()) {
@@ -299,7 +302,8 @@
   }
 
   input().addEventListener("input", () => {
-    currentLetters.setWord(input().value);
+    const word = input().value;
+    currentLetters.setWord(word);
     updateWheel();
     updateHash(word);
   });
@@ -314,7 +318,7 @@
     updateWheel();
   });
 
-  refreshButton().addEventListener("click", (e) => {
+  refreshButton().addEventListener("pointerdown", (e) => {
     currentLetters.shuffle();
     updateWheel();
   });
